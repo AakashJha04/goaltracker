@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+  /* Visible keyboard focus everywhere. */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(38, 71, 206, 0.28);
+    border-radius: 8px;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.22em] text-slate;
+  }
+  .field-label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px]
+           text-ink placeholder:text-slate/60 transition
+           focus:border-cobalt focus:shadow-focus;
+  }
+  .btn-primary {
+    @apply inline-flex w-full items-center justify-center rounded-xl bg-cobalt px-4 py-2.5
+           text-[15px] font-semibold text-white transition
+           hover:bg-cobalt-600 active:bg-cobalt-700 disabled:opacity-60;
+  }
+}
+
+/* Signature: the trajectory arc draws itself on load. */
+.traj-path {
+  stroke-dasharray: 620;
+  stroke-dashoffset: 620;
+  animation: draw 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.traj-target {
+  transform-origin: center;
+  animation: pulse 2.6s ease-in-out 1.6s infinite;
+}
+.traj-dot { animation: fade 0.6s ease 1.5s both; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.18); opacity: 0.85; }
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .traj-path { animation: none; stroke-dashoffset: 0; }
+  .traj-target, .traj-dot { animation: none; }
+}

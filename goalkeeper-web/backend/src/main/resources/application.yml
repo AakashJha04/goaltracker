@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: goalkeeper
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/goalkeeper}
+    username: ${DB_USER:goalkeeper}
+    password: ${DB_PASSWORD:goalkeeper}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: none        # schema owned by Flyway
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+
+app:
+  jwt:
+    # 256-bit secret. OVERRIDE in production via env var.
+    secret: ${JWT_SECRET:2f8b7c1e9a4d6f0b3e5c8a1d7f2b4e6c9a0d3f5b8c1e4a7d0f2b5e8c1a4d7f0b}
+    access-token-ttl-seconds: 900          # 15 minutes
+    refresh-token-ttl-seconds: 1209600     # 14 days
+  cookie:
+    refresh-name: refresh_token
+    secure: ${COOKIE_SECURE:false}         # true behind HTTPS in production
+    same-site: Lax
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
