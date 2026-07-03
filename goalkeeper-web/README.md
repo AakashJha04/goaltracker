@@ -1,8 +1,7 @@
-# Goalkeeper — Web App (Phase 1)
+# Goalkeeper — Web App (Phase 2)
 
-Full-stack goal tracker. **Phase 1 delivers the auth foundation, runnable end to end:**
-register / log in / stay logged in / log out, backed by PostgreSQL, with a designed
-React front end.
+Full-stack goal tracker. **Phase 1** delivered the auth foundation; **Phase 2** adds
+goals, milestones, and a real dashboard.
 
 ```
 goalkeeper-web/
@@ -16,9 +15,14 @@ goalkeeper-web/
   the session survives a page refresh and access tokens auto-renew silently.
 - Passwords hashed with BCrypt; refresh tokens stored only as SHA-256 hashes.
 - Protected route + auth guard on the front end; polished login/register/dashboard UI.
+- **Goals**: create/edit/delete (soft delete), status (active/completed/archived),
+  priority, category, target date. List view with status filter, search, pagination.
+- **Milestones**: add/toggle/remove per goal; checking them off recomputes the goal's
+  progress automatically.
+- **Dashboard**: real stats (totals, completion rate), a status-split donut and
+  category bar chart (Recharts), and an upcoming-deadlines list.
 
-The dashboard is intentionally a shell — goals, milestones, reminders, and notifications
-are Phases 2–3 from the system design.
+Reminders and notifications are Phase 3 from the system design.
 
 ---
 
@@ -26,6 +30,12 @@ are Phases 2–3 from the system design.
 
 ### 1. Backend
 Prereqs: JDK 17+, Docker (for Postgres), Maven (or the `mvn` on your path).
+
+> **Multiple JDKs installed?** Lombok's annotation processor (used for the entity
+> getters/setters) can silently fail to run on very new JDKs it doesn't support yet,
+> which surfaces as `cannot find symbol: method getX()` compile errors. Point
+> `JAVA_HOME` at a JDK 17–21 install before running Maven, e.g.:
+> `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`
 
 ```bash
 cd backend
@@ -48,7 +58,7 @@ Open http://localhost:5173, create an account, and you'll land on the dashboard.
 
 ---
 
-## API (Phase 1)
+## API (Phase 1 — auth)
 
 | Method | Path | Body | Notes |
 |---|---|---|---|
@@ -57,6 +67,26 @@ Open http://localhost:5173, create an account, and you'll land on the dashboard.
 | POST | `/auth/refresh` | — (cookie) | rotates refresh, returns new access token |
 | POST | `/auth/logout` | — (cookie) | revokes + clears cookie |
 | GET | `/auth/me` | — (Bearer) | current user |
+
+## API (Phase 2 — goals, milestones, dashboard)
+
+All routes require a Bearer access token and are scoped to the caller.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/goals?status=&category=&search=&sort=&dir=&page=&size=` | paginated |
+| POST | `/api/goals` | create |
+| GET/PUT/DELETE | `/api/goals/{id}` | delete is a soft-delete |
+| PATCH | `/api/goals/{id}/status` | `{status}` |
+| PATCH | `/api/goals/{id}/progress` | `{progress}` (0-100) |
+| GET/POST | `/api/goals/{id}/milestones` | max 50 per goal |
+| PUT/DELETE | `/api/milestones/{id}` | toggling `done` recomputes goal progress |
+| PATCH | `/api/goals/{id}/milestones/reorder` | `{orderedIds}` |
+| GET | `/api/dashboard/stats` | counts, completion rate, upcoming deadlines, category breakdown |
+
+Run the backend test suite with `mvn -q test` (needs `docker compose up -d` running
+first — tests hit the same Postgres as local dev, using freshly registered test users
+so they don't collide with your own data).
 
 ---
 
@@ -78,5 +108,5 @@ respected.
   flips this to a real verification email.
 
 ## Next (from the system design)
-Phase 2 — goals + milestones CRUD, list with filter/sort/pagination, dashboard stats.
 Phase 3 — reminders + scheduler + in-app/email notifications (in-process async first).
+Phase 4 — tags, activity log, Redis caching, Docker/CI polish.
