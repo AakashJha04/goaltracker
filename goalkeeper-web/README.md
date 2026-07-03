@@ -1,7 +1,7 @@
-# Goalkeeper — Web App (Phase 2)
+# Goalkeeper — Web App (Phase 3)
 
-Full-stack goal tracker. **Phase 1** delivered the auth foundation; **Phase 2** adds
-goals, milestones, and a real dashboard.
+Full-stack goal tracker. **Phase 1** delivered the auth foundation; **Phase 2** added
+goals, milestones, and a real dashboard; **Phase 3** adds reminders and notifications.
 
 ```
 goalkeeper-web/
@@ -21,8 +21,15 @@ goalkeeper-web/
   progress automatically.
 - **Dashboard**: real stats (totals, completion rate), a status-split donut and
   category bar chart (Recharts), and an upcoming-deadlines list.
+- **Reminders**: up to 3 per goal, set from the goal detail screen. A `@Scheduled` job
+  polls every minute for due reminders (`SELECT ... FOR UPDATE SKIP LOCKED`, so it's
+  safe to run more than one backend instance) and turns each into a notification.
+- **Notifications**: a bell in the header polls every 30s for the unread count and feed;
+  mark-read / mark-all-read. Reminders can also fire an email — if no SMTP is
+  configured (the default), the email is logged to the console instead so the whole
+  loop runs with zero setup.
 
-Reminders and notifications are Phase 3 from the system design.
+Tags, activity log, and Docker/CI polish are Phase 4 from the system design.
 
 ---
 
@@ -84,6 +91,22 @@ All routes require a Bearer access token and are scoped to the caller.
 | PATCH | `/api/goals/{id}/milestones/reorder` | `{orderedIds}` |
 | GET | `/api/dashboard/stats` | counts, completion rate, upcoming deadlines, category breakdown |
 
+## API (Phase 3 — reminders, notifications)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET/POST | `/api/goals/{goalId}/reminders` | max 3 per goal, `{remindAt, channel}` (`IN_APP`\|`EMAIL`) |
+| DELETE | `/api/goals/{goalId}/reminders/{id}` | |
+| GET | `/api/notifications?page=&size=` | paginated, newest first |
+| GET | `/api/notifications/unread-count` | polled by the header bell every 30s |
+| PATCH | `/api/notifications/{id}/read` | |
+| POST | `/api/notifications/read-all` | |
+
+Real-time delivery is polling, not push, for now: a native `EventSource` can't attach
+our in-memory bearer token without putting it in the URL, so SSE/WebSocket is a
+deliberate TODO rather than a security shortcut. `spring.mail.*` env vars +
+`MAIL_ENABLED=true` switch reminders from console-logged to real SMTP email.
+
 Run the backend test suite with `mvn -q test` (needs `docker compose up -d` running
 first — tests hit the same Postgres as local dev, using freshly registered test users
 so they don't collide with your own data).
@@ -104,9 +127,8 @@ respected.
   `SameSite=None`.
 - Override `JWT_SECRET`, DB creds, and `FRONTEND_ORIGIN` via env vars in production
   (see `backend/src/main/resources/application.yml`).
-- Phase 1 marks new accounts `emailVerified=true` because no SMTP is wired yet; Phase 3
-  flips this to a real verification email.
+- Phase 1 marks new accounts `emailVerified=true` because no SMTP is wired yet; a real
+  verification-email flow is still open (tracked for a later phase).
 
 ## Next (from the system design)
-Phase 3 — reminders + scheduler + in-app/email notifications (in-process async first).
 Phase 4 — tags, activity log, Redis caching, Docker/CI polish.

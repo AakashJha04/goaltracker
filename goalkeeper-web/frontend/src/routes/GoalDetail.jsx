@@ -13,10 +13,17 @@ import {
   updateGoalStatus,
   updateMilestone,
 } from '../api/goals';
+import { createReminder, deleteReminder, fetchReminders } from '../api/notifications';
+
+const MAX_REMINDERS = 3;
 
 function formatDate(iso) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(iso) {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 export default function GoalDetail() {
@@ -24,17 +31,32 @@ export default function GoalDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [newMilestone, setNewMilestone] = useState('');
+  const [newReminderAt, setNewReminderAt] = useState('');
   const [error, setError] = useState('');
 
   const goalQuery = useQuery({ queryKey: ['goal', id], queryFn: () => fetchGoal(id) });
   const milestonesQuery = useQuery({ queryKey: ['milestones', id], queryFn: () => fetchMilestones(id) });
+  const remindersQuery = useQuery({ queryKey: ['reminders', id], queryFn: () => fetchReminders(id) });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['goal', id] });
     queryClient.invalidateQueries({ queryKey: ['milestones', id] });
+    queryClient.invalidateQueries({ queryKey: ['reminders', id] });
     queryClient.invalidateQueries({ queryKey: ['goals'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
   };
+
+  const addReminder = useMutation({
+    mutationFn: (remindAt) => createReminder(id, remindAt),
+    onSuccess: () => { setNewReminderAt(''); invalidate(); },
+    onError: (err) => setError(parseError(err).message),
+  });
+
+  const removeReminder = useMutation({
+    mutationFn: (reminderId) => deleteReminder(id, reminderId),
+    onSuccess: invalidate,
+    onError: (err) => setError(parseError(err).message),
+  });
 
   const addMilestone = useMutation({
     mutationFn: (title) => createMilestone(id, title),
@@ -79,6 +101,7 @@ export default function GoalDetail() {
 
   const goal = goalQuery.data;
   const milestones = milestonesQuery.data || [];
+  const reminders = remindersQuery.data || [];
 
   return (
     <AppLayout>
@@ -173,6 +196,54 @@ export default function GoalDetail() {
             Add
           </button>
         </form>
+      </div>
+
+      <div className="mt-6 rounded-xl2 border border-line bg-surface p-6 shadow-card">
+        <h2 className="font-display text-lg font-bold">Reminders</h2>
+        <p className="mt-1 text-sm text-slate">Up to {MAX_REMINDERS} per goal. You'll get an in-app notification when one's due.</p>
+
+        <ul className="mt-5 space-y-2">
+          {reminders.map((r) => (
+            <li key={r.id} className="flex items-center gap-3 rounded-lg border border-line px-3.5 py-2.5">
+              <span className="flex-1 font-mono text-sm text-ink">{formatDateTime(r.remindAt)}</span>
+              <span className={`pill ${r.status === 'SENT' ? 'bg-line text-slate' : 'bg-cobalt/10 text-cobalt'}`}>
+                {r.status === 'SENT' ? 'Sent' : 'Pending'}
+              </span>
+              <button
+                onClick={() => removeReminder.mutate(r.id)}
+                className="text-xs font-medium text-slate hover:text-danger"
+                aria-label={`Remove reminder for ${formatDateTime(r.remindAt)}`}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+          {reminders.length === 0 && (
+            <li className="rounded-lg border border-dashed border-line px-3.5 py-3 text-sm text-slate">
+              No reminders set.
+            </li>
+          )}
+        </ul>
+
+        {reminders.length < MAX_REMINDERS && (
+          <form
+            className="mt-4 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newReminderAt) addReminder.mutate(new Date(newReminderAt).toISOString());
+            }}
+          >
+            <input
+              type="datetime-local"
+              className="input"
+              value={newReminderAt}
+              onChange={(e) => setNewReminderAt(e.target.value)}
+            />
+            <button type="submit" className="btn-secondary shrink-0" disabled={addReminder.isPending || !newReminderAt}>
+              Add
+            </button>
+          </form>
+        )}
       </div>
     </AppLayout>
   );

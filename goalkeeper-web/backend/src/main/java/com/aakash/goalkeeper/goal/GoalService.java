@@ -84,8 +84,8 @@ public class GoalService {
         return toDto(g);
     }
 
-    /** Package-visible: used by MilestoneService to recompute progress and verify ownership. */
-    Goal requireOwned(UUID userId, UUID goalId) {
+    /** Used by MilestoneService (same package) and other feature packages (reminders) to verify ownership. */
+    public Goal requireOwned(UUID userId, UUID goalId) {
         return goals.findByIdAndUserIdAndDeletedFalse(goalId, userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Goal not found"));
     }

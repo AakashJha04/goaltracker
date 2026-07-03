@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import NotificationBell from './NotificationBell';
 
 function NavItem({ to, children }) {
   return (
@@ -38,7 +39,8 @@ export default function AppLayout({ children }) {
               <NavItem to="/goals">Goals</NavItem>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <NotificationBell />
             <span className="hidden text-sm text-slate sm:inline">{user?.email}</span>
             <button
               onClick={logout}

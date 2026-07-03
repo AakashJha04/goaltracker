@@ -34,3 +34,8 @@ app:
     same-site: Lax
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  mail:
+    # Off by default so the app runs with zero SMTP setup (reminders log to the
+    # console instead). Set MAIL_ENABLED=true and spring.mail.* env vars to send real email.
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:noreply@goalkeeper.app}
