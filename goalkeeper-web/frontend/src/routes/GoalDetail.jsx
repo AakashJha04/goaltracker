@@ -14,6 +14,8 @@ import {
   updateMilestone,
 } from '../api/goals';
 import { createReminder, deleteReminder, fetchReminders } from '../api/notifications';
+import { attachTag, createTag, detachTag, fetchTags, fetchTagsForGoal } from '../api/tags';
+import { fetchActivity } from '../api/activity';
 
 const MAX_REMINDERS = 3;
 
@@ -32,11 +34,15 @@ export default function GoalDetail() {
   const queryClient = useQueryClient();
   const [newMilestone, setNewMilestone] = useState('');
   const [newReminderAt, setNewReminderAt] = useState('');
+  const [newTagName, setNewTagName] = useState('');
   const [error, setError] = useState('');
 
   const goalQuery = useQuery({ queryKey: ['goal', id], queryFn: () => fetchGoal(id) });
   const milestonesQuery = useQuery({ queryKey: ['milestones', id], queryFn: () => fetchMilestones(id) });
   const remindersQuery = useQuery({ queryKey: ['reminders', id], queryFn: () => fetchReminders(id) });
+  const goalTagsQuery = useQuery({ queryKey: ['goal-tags', id], queryFn: () => fetchTagsForGoal(id) });
+  const allTagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
+  const activityQuery = useQuery({ queryKey: ['activity', id], queryFn: () => fetchActivity(id) });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['goal', id] });
@@ -44,7 +50,35 @@ export default function GoalDetail() {
     queryClient.invalidateQueries({ queryKey: ['reminders', id] });
     queryClient.invalidateQueries({ queryKey: ['goals'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['activity', id] });
   };
+
+  const invalidateTagsAndActivity = () => {
+    queryClient.invalidateQueries({ queryKey: ['goal-tags', id] });
+    queryClient.invalidateQueries({ queryKey: ['tags'] });
+    queryClient.invalidateQueries({ queryKey: ['activity', id] });
+  };
+
+  const addExistingTag = useMutation({
+    mutationFn: (tagId) => attachTag(id, tagId),
+    onSuccess: invalidateTagsAndActivity,
+    onError: (err) => setError(parseError(err).message),
+  });
+
+  const addNewTag = useMutation({
+    mutationFn: async (name) => {
+      const tag = await createTag(name);
+      await attachTag(id, tag.id);
+    },
+    onSuccess: () => { setNewTagName(''); invalidateTagsAndActivity(); },
+    onError: (err) => setError(parseError(err).message),
+  });
+
+  const removeTag = useMutation({
+    mutationFn: (tagId) => detachTag(id, tagId),
+    onSuccess: invalidateTagsAndActivity,
+    onError: (err) => setError(parseError(err).message),
+  });
 
   const addReminder = useMutation({
     mutationFn: (remindAt) => createReminder(id, remindAt),
@@ -102,6 +136,10 @@ export default function GoalDetail() {
   const goal = goalQuery.data;
   const milestones = milestonesQuery.data || [];
   const reminders = remindersQuery.data || [];
+  const goalTags = goalTagsQuery.data || [];
+  const attachedIds = new Set(goalTags.map((t) => t.id));
+  const availableTags = (allTagsQuery.data || []).filter((t) => !attachedIds.has(t.id));
+  const activity = activityQuery.data?.items || [];
 
   return (
     <AppLayout>
@@ -124,6 +162,47 @@ export default function GoalDetail() {
             {goal.targetDate && ` · Due ${formatDate(goal.targetDate)}`}
           </p>
           {goal.description && <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate">{goal.description}</p>}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {goalTags.map((t) => (
+              <span key={t.id} className="pill bg-navy/8 text-navy-700">
+                {t.name}
+                <button
+                  onClick={() => removeTag.mutate(t.id)}
+                  className="ml-1 text-navy-700/60 hover:text-danger"
+                  aria-label={`Remove tag ${t.name}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {availableTags.length > 0 && (
+              <select
+                className="rounded-full border border-dashed border-line bg-surface px-2.5 py-1 text-xs text-slate"
+                value=""
+                onChange={(e) => { if (e.target.value) addExistingTag.mutate(e.target.value); }}
+              >
+                <option value="">+ Add tag</option>
+                {availableTags.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
+            <form
+              className="inline-flex"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newTagName.trim()) addNewTag.mutate(newTagName.trim());
+              }}
+            >
+              <input
+                className="w-28 rounded-full border border-dashed border-line bg-surface px-2.5 py-1 text-xs text-ink placeholder:text-slate/60"
+                placeholder="New tag…"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+              />
+            </form>
+          </div>
         </div>
         <div className="flex shrink-0 gap-2">
           <Link to={`/goals/${id}/edit`} className="btn-secondary">Edit</Link>
@@ -243,6 +322,24 @@ export default function GoalDetail() {
               Add
             </button>
           </form>
+        )}
+      </div>
+
+      <div className="mt-6 rounded-xl2 border border-line bg-surface p-6 shadow-card">
+        <h2 className="font-display text-lg font-bold">Activity</h2>
+        <p className="mt-1 text-sm text-slate">A history of changes to this goal.</p>
+
+        {activity.length === 0 ? (
+          <p className="mt-4 text-sm text-slate">Nothing yet.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {activity.map((a) => (
+              <li key={a.id} className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="text-ink">{a.description}</span>
+                <span className="shrink-0 font-mono text-xs text-slate">{formatDateTime(a.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </AppLayout>

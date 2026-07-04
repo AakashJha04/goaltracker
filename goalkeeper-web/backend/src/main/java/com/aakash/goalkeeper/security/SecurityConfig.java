@@ -53,7 +53,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable()) // stateless JWT API; refresh cookie is SameSite-protected
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(reg -> reg
-                .requestMatchers("/auth/**", "/health", "/error").permitAll()
+                .requestMatchers("/auth/**", "/health", "/error", "/actuator/health").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
                 res.setStatus(HttpStatus.UNAUTHORIZED.value());

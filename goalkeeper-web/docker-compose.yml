@@ -1,0 +1,55 @@
+# Full-stack run: Postgres + backend + frontend.
+# `docker compose up --build` — frontend on :5173, backend on :8080.
+# Redis is optional; add it with `docker compose --profile redis up --build`
+# and set CACHE_TYPE=redis on the backend service below.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: goalkeeper
+      POSTGRES_USER: goalkeeper
+      POSTGRES_PASSWORD: goalkeeper
+    ports:
+      - "5432:5432"
+    volumes:
+      - goalkeeper_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goalkeeper"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"]
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/goalkeeper
+      DB_USER: goalkeeper
+      DB_PASSWORD: goalkeeper
+      FRONTEND_ORIGIN: http://localhost:5173
+      CACHE_TYPE: ${CACHE_TYPE:-simple}
+      REDIS_HOST: redis
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  goalkeeper_pg:

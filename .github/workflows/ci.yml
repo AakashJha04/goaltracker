@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: goalkeeper
+          POSTGRES_USER: goalkeeper
+          POSTGRES_PASSWORD: goalkeeper
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U goalkeeper"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build and test
+        working-directory: goalkeeper-web/backend
+        run: mvn -B -q test
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/goalkeeper
+          DB_USER: goalkeeper
+          DB_PASSWORD: goalkeeper
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: goalkeeper-web/frontend/package-lock.json
+      - name: Install and build
+        working-directory: goalkeeper-web/frontend
+        run: |
+          npm ci
+          npm run build

@@ -18,9 +18,32 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  cache:
+    # "simple" (in-memory, zero setup) by default. Set CACHE_TYPE=redis + REDIS_HOST
+    # to cache dashboard stats in Redis instead — purely an optimization, the app
+    # works identically either way.
+    type: ${CACHE_TYPE:simple}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 server:
   port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    redis:
+      # Redis is an optional cache backend (see spring.cache.type above) — its absence
+      # shouldn't report the whole app as DOWN. Flip this on if you set CACHE_TYPE=redis.
+      enabled: ${REDIS_HEALTH_ENABLED:false}
 
 app:
   jwt:

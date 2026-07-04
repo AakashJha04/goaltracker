@@ -2,6 +2,7 @@ package com.aakash.goalkeeper.goal;
 
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Collection;
 import java.util.UUID;
 
 /** Composable filters for the goal list query; every list is scoped to a single owner. */
@@ -29,5 +30,9 @@ class GoalSpecifications {
         return (root, query, cb) -> (search == null || search.isBlank())
                 ? null
                 : cb.like(cb.lower(root.get("title")), "%" + search.toLowerCase() + "%");
+    }
+
+    static Specification<Goal> idIn(Collection<UUID> ids) {
+        return (root, query, cb) -> ids == null ? null : root.get("id").in(ids);
     }
 }

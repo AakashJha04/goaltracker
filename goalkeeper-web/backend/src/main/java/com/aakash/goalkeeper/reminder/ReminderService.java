@@ -1,5 +1,7 @@
 package com.aakash.goalkeeper.reminder;
 
+import com.aakash.goalkeeper.activity.ActivityService;
+import com.aakash.goalkeeper.activity.ActivityType;
 import com.aakash.goalkeeper.common.ApiException;
 import com.aakash.goalkeeper.goal.GoalService;
 import com.aakash.goalkeeper.reminder.dto.ReminderDtos.*;
@@ -8,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,15 +20,20 @@ public class ReminderService {
 
     private static final int MAX_PER_GOAL = 3;
     private static final int BATCH_SIZE = 50;
+    private static final DateTimeFormatter DISPLAY_FORMAT =
+            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withZone(java.time.ZoneOffset.UTC);
 
     private final ReminderRepository reminders;
     private final GoalService goals;
     private final ApplicationEventPublisher events;
+    private final ActivityService activity;
 
-    public ReminderService(ReminderRepository reminders, GoalService goals, ApplicationEventPublisher events) {
+    public ReminderService(ReminderRepository reminders, GoalService goals, ApplicationEventPublisher events,
+                            ActivityService activity) {
         this.reminders = reminders;
         this.goals = goals;
         this.events = events;
+        this.activity = activity;
     }
 
     public List<ReminderDto> list(UUID userId, UUID goalId) {
@@ -44,6 +53,7 @@ public class ReminderService {
         r.setRemindAt(req.remindAt());
         r.setChannel(req.channel() != null ? req.channel() : ReminderChannel.IN_APP);
         reminders.save(r);
+        activity.record(goalId, ActivityType.REMINDER_ADDED, "Reminder set for " + DISPLAY_FORMAT.format(req.remindAt()));
         return toDto(r);
     }
 

@@ -2,6 +2,7 @@ package com.aakash.goalkeeper.goal;
 
 import com.aakash.goalkeeper.goal.dto.DashboardDtos.DashboardStats;
 import com.aakash.goalkeeper.goal.dto.DashboardDtos.UpcomingGoal;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
 @Service
 public class DashboardService {
 
+    public static final String CACHE_NAME = "dashboardStats";
     private static final int UPCOMING_LIMIT = 5;
 
     private final GoalRepository goals;
@@ -21,6 +23,7 @@ public class DashboardService {
         this.goals = goals;
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "#userId")
     public DashboardStats stats(UUID userId) {
         long total = goals.countByUserIdAndDeletedFalse(userId);
         long active = goals.countByUserIdAndDeletedFalseAndStatus(userId, GoalStatus.ACTIVE);

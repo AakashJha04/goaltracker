@@ -9,7 +9,9 @@ Goalkeeper — a full-stack goal-tracking web app.
 - `docs/goalkeeper-system-design.md` — the architecture (data model, API, auth, notifications, scale).
 - `docs/goalkeeper-build-prompt.md` — the phased build plan.
 
-Current status: **Phase 1 complete** (auth foundation). Next: Phase 2 (goals + milestones + dashboard).
+Current status: **Phases 1–4 complete** (auth, goals/milestones/dashboard,
+reminders/notifications, tags/activity/caching/Docker/CI). See `README.md` for what's
+implemented and `## Known follow-ups` there for what's intentionally left open.
 
 ## Run commands
 Backend:  `cd backend && docker compose up -d && mvn spring-boot:run`   → http://localhost:8080

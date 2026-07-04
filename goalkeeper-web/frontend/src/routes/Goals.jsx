@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import AppLayout from '../components/AppLayout';
 import StatusPill from '../components/StatusPill';
 import { fetchGoals } from '../api/goals';
+import { fetchTags } from '../api/tags';
 
 const STATUS_FILTERS = [
   { value: '', label: 'All' },
@@ -20,13 +21,17 @@ function formatDate(iso) {
 export default function Goals() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [tag, setTag] = useState('');
   const [page, setPage] = useState(0);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['goals', { status, search, page }],
-    queryFn: () => fetchGoals({ status: status || undefined, search: search || undefined, page }),
+    queryKey: ['goals', { status, search, tag, page }],
+    queryFn: () => fetchGoals({ status: status || undefined, search: search || undefined, tag: tag || undefined, page }),
     placeholderData: (prev) => prev,
   });
+
+  const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
+  const tags = tagsQuery.data || [];
 
   return (
     <AppLayout>
@@ -58,6 +63,18 @@ export default function Goals() {
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(0); }}
         />
+        {tags.length > 0 && (
+          <select
+            className="input max-w-[10rem]"
+            value={tag}
+            onChange={(e) => { setTag(e.target.value); setPage(0); }}
+          >
+            <option value="">All tags</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.name}>{t.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {isLoading && <p className="mt-10 text-slate">Loading…</p>}
@@ -67,7 +84,7 @@ export default function Goals() {
         <div className="mt-10 rounded-xl2 border border-line bg-surface p-10 text-center shadow-card">
           <h2 className="font-display text-xl font-bold">No goals here yet</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate">
-            {search || status ? 'Nothing matches these filters.' : 'Start with something you want to be true a few months from now.'}
+            {search || status || tag ? 'Nothing matches these filters.' : 'Start with something you want to be true a few months from now.'}
           </p>
           <Link to="/goals/new" className="btn-primary mt-6 inline-flex w-auto px-6">Add your first goal</Link>
         </div>

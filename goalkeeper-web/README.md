@@ -1,7 +1,8 @@
-# Goalkeeper — Web App (Phase 3)
+# Goalkeeper — Web App (Phase 4 — complete)
 
-Full-stack goal tracker. **Phase 1** delivered the auth foundation; **Phase 2** added
-goals, milestones, and a real dashboard; **Phase 3** adds reminders and notifications.
+Full-stack goal tracker, all four build phases complete: **Phase 1** auth, **Phase 2**
+goals/milestones/dashboard, **Phase 3** reminders/notifications, **Phase 4** tags,
+activity log, caching, and Docker/CI polish.
 
 ```
 goalkeeper-web/
@@ -29,11 +30,26 @@ goalkeeper-web/
   configured (the default), the email is logged to the console instead so the whole
   loop runs with zero setup.
 
-Tags, activity log, and Docker/CI polish are Phase 4 from the system design.
+- **Tags**: create/attach/detach per goal, filter the goals list by tag.
+- **Activity log**: a per-goal history (created, status changes, milestones, tags,
+  reminders) shown on the goal detail screen.
+- **Caching**: dashboard stats are cached (in-memory by default; Redis is a config-gated
+  drop-in, see below) and evicted whenever a goal changes.
+- **Ops**: `/actuator/health` (public) and `/actuator/info`, a one-line-per-request log,
+  Dockerfiles for both apps, a root `docker-compose.yml` for the full stack, and a
+  GitHub Actions workflow that builds + tests both apps on push.
 
 ---
 
-## Run it (two terminals)
+## Run it — Docker (full stack, one command)
+
+```bash
+cd goalkeeper-web
+docker compose up --build     # Postgres :5432, API :8080, app :5173
+```
+Open http://localhost:5173. Add `--profile redis` to also start Redis (see Caching below).
+
+## Run it — locally (two terminals)
 
 ### 1. Backend
 Prereqs: JDK 17+, Docker (for Postgres), Maven (or the `mvn` on your path).
@@ -107,6 +123,29 @@ our in-memory bearer token without putting it in the URL, so SSE/WebSocket is a
 deliberate TODO rather than a security shortcut. `spring.mail.*` env vars +
 `MAIL_ENABLED=true` switch reminders from console-logged to real SMTP email.
 
+## API (Phase 4 — tags, activity)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET/POST | `/api/tags` | list / create a tag |
+| DELETE | `/api/tags/{id}` | |
+| GET | `/api/goals/{goalId}/tags` | tags on one goal |
+| POST/DELETE | `/api/goals/{goalId}/tags/{tagId}` | attach / detach |
+| GET | `/api/goals?tag=<name>` | filter the goals list by tag |
+| GET | `/api/goals/{goalId}/activity?page=&size=` | paginated, newest first |
+
+## Caching (Phase 4)
+
+`GET /api/dashboard/stats` is cached per user and evicted whenever that user's goals
+change (create/update/delete/status). `spring.cache.type` defaults to `simple`
+(in-memory, zero setup). To use Redis instead:
+```bash
+CACHE_TYPE=redis REDIS_HOST=localhost REDIS_HEALTH_ENABLED=true mvn spring-boot:run
+# or: docker compose --profile redis up --build
+```
+`REDIS_HEALTH_ENABLED` also gates the Redis entry in `/actuator/health` — off by
+default so a missing/unused Redis never reports the app as unhealthy.
+
 Run the backend test suite with `mvn -q test` (needs `docker compose up -d` running
 first — tests hit the same Postgres as local dev, using freshly registered test users
 so they don't collide with your own data).
@@ -128,7 +167,13 @@ respected.
 - Override `JWT_SECRET`, DB creds, and `FRONTEND_ORIGIN` via env vars in production
   (see `backend/src/main/resources/application.yml`).
 - Phase 1 marks new accounts `emailVerified=true` because no SMTP is wired yet; a real
-  verification-email flow is still open (tracked for a later phase).
+  verification-email flow is still open.
+- `/actuator/health` is intentionally public (infra health checks); every other
+  `/actuator/**` endpoint still requires auth like the rest of the API.
 
-## Next (from the system design)
-Phase 4 — tags, activity log, Redis caching, Docker/CI polish.
+## Known follow-ups
+- Real-time notifications are polling, not push (see Phase 3 API notes) — a cookie-authed
+  SSE/WebSocket upgrade is the natural next step.
+- Email verification and password reset aren't implemented yet.
+- The frontend bundle is a single ~660KB chunk; route-based code-splitting would help
+  if this grows further.

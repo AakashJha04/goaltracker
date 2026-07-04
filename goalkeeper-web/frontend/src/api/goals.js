@@ -1,8 +1,8 @@
 import { api } from './client';
 
-export async function fetchGoals({ status, category, search, sort = 'createdAt', dir = 'desc', page = 0, size = 20 } = {}) {
+export async function fetchGoals({ status, category, search, tag, sort = 'createdAt', dir = 'desc', page = 0, size = 20 } = {}) {
   const { data } = await api.get('/api/goals', {
-    params: { status, category, search, sort, dir, page, size },
+    params: { status, category, search, tag, sort, dir, page, size },
   });
   return data;
 }

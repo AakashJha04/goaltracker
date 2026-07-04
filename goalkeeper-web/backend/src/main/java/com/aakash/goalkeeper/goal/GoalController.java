@@ -3,6 +3,7 @@ package com.aakash.goalkeeper.goal;
 import com.aakash.goalkeeper.goal.dto.GoalDtos.*;
 import com.aakash.goalkeeper.goal.dto.PageResponse;
 import com.aakash.goalkeeper.security.UserPrincipal;
+import com.aakash.goalkeeper.tag.TagService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -20,9 +22,11 @@ public class GoalController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final GoalService service;
+    private final TagService tags;
 
-    public GoalController(GoalService service) {
+    public GoalController(GoalService service, TagService tags) {
         this.service = service;
+        this.tags = tags;
     }
 
     @GetMapping
@@ -30,6 +34,7 @@ public class GoalController {
                                        @RequestParam(required = false) GoalStatus status,
                                        @RequestParam(required = false) String category,
                                        @RequestParam(required = false) String search,
+                                       @RequestParam(required = false) String tag,
                                        @RequestParam(defaultValue = "createdAt") String sort,
                                        @RequestParam(defaultValue = "desc") String dir,
                                        @RequestParam(defaultValue = "0") int page,
@@ -37,7 +42,13 @@ public class GoalController {
         int boundedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         Sort.Direction direction = "asc".equalsIgnoreCase(dir) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(Math.max(page, 0), boundedSize, Sort.by(direction, sort));
-        return service.list(principal.id(), status, category, search, pageable);
+
+        List<UUID> restrictToIds = null;
+        if (tag != null && !tag.isBlank()) {
+            UUID tagId = tags.resolveTagIdByName(principal.id(), tag);
+            restrictToIds = tagId == null ? List.of() : tags.goalIdsForTag(tagId);
+        }
+        return service.list(principal.id(), status, category, search, restrictToIds, pageable);
     }
 
     @PostMapping

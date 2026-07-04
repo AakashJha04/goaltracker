@@ -1,5 +1,7 @@
 package com.aakash.goalkeeper.goal;
 
+import com.aakash.goalkeeper.activity.ActivityService;
+import com.aakash.goalkeeper.activity.ActivityType;
 import com.aakash.goalkeeper.common.ApiException;
 import com.aakash.goalkeeper.goal.dto.MilestoneDtos.*;
 import org.springframework.http.HttpStatus;
@@ -17,10 +19,12 @@ public class MilestoneService {
 
     private final GoalService goals;
     private final MilestoneRepository milestones;
+    private final ActivityService activity;
 
-    public MilestoneService(GoalService goals, MilestoneRepository milestones) {
+    public MilestoneService(GoalService goals, MilestoneRepository milestones, ActivityService activity) {
         this.goals = goals;
         this.milestones = milestones;
+        this.activity = activity;
     }
 
     public List<MilestoneDto> list(UUID userId, UUID goalId) {
@@ -40,6 +44,7 @@ public class MilestoneService {
         m.setTitle(req.title().trim());
         m.setPosition((int) count);
         milestones.save(m);
+        activity.record(goalId, ActivityType.MILESTONE_ADDED, "Milestone added: " + m.getTitle());
         return toDto(m);
     }
 
@@ -50,7 +55,11 @@ public class MilestoneService {
         boolean doneChanged = m.isDone() != req.done();
         m.setDone(req.done());
         milestones.save(m);
-        if (doneChanged) recomputeProgress(userId, m.getGoalId());
+        if (doneChanged) {
+            recomputeProgress(userId, m.getGoalId());
+            String verb = req.done() ? "completed" : "reopened";
+            activity.record(m.getGoalId(), ActivityType.MILESTONE_TOGGLED, "Milestone " + verb + ": " + m.getTitle());
+        }
         return toDto(m);
     }
 
@@ -60,6 +69,7 @@ public class MilestoneService {
         UUID goalId = m.getGoalId();
         milestones.delete(m);
         recomputeProgress(userId, goalId);
+        activity.record(goalId, ActivityType.MILESTONE_REMOVED, "Milestone removed: " + m.getTitle());
     }
 
     @Transactional
