@@ -2,7 +2,10 @@ spring:
   application:
     name: goalkeeper
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/goalkeeper}
+    # DB_URL wins if set (e.g. local Docker Compose). Otherwise it's composed from
+    # DB_HOST/DB_PORT/DB_NAME, which a host like Render supplies as separate values
+    # tied to its managed Postgres instance.
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:goalkeeper}}
     username: ${DB_USER:goalkeeper}
     password: ${DB_PASSWORD:goalkeeper}
     hikari:
@@ -54,7 +57,7 @@ app:
   cookie:
     refresh-name: refresh_token
     secure: ${COOKIE_SECURE:false}         # true behind HTTPS in production
-    same-site: Lax
+    same-site: ${COOKIE_SAME_SITE:Lax}     # None (+ secure=true) when API and app are on different domains
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   mail:

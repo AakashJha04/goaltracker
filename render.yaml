@@ -1,0 +1,55 @@
+# Render Blueprint — deploys the whole stack from one repo connection.
+# https://render.com/docs/blueprint-spec
+#
+# In the Render dashboard: New + -> Blueprint -> connect this repo -> Apply.
+# Review the two URLs Render assigns (they follow <name>.onrender.com from below)
+# and update FRONTEND_ORIGIN / VITE_API_URL here if you rename either service.
+
+databases:
+  - name: goalkeeper-db
+    databaseName: goalkeeper
+    user: goalkeeper
+    plan: free
+
+services:
+  - type: web
+    name: goalkeeper-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./goalkeeper-web/backend/Dockerfile
+    dockerContext: ./goalkeeper-web/backend
+    healthCheckPath: /health
+    envVars:
+      - key: DB_HOST
+        fromDatabase: { name: goalkeeper-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: goalkeeper-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: goalkeeper-db, property: database }
+      - key: DB_USER
+        fromDatabase: { name: goalkeeper-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: goalkeeper-db, property: password }
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        # Backend and frontend are on different onrender.com subdomains, which the
+        # browser treats as cross-site — the refresh cookie needs SameSite=None here.
+        value: None
+      - key: FRONTEND_ORIGIN
+        value: https://goalkeeper-frontend.onrender.com
+
+  - type: web
+    name: goalkeeper-frontend
+    runtime: static
+    buildCommand: cd goalkeeper-web/frontend && npm ci && npm run build
+    staticPublishPath: ./goalkeeper-web/frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://goalkeeper-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
